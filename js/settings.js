@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────
 
 import { state } from './app.js';
-import { getProfile, saveProfile, getAllSessions, saveSession, todayKey } from './db.js';
+import { getProfile, saveProfile, getAllSessions, saveSession, deleteSession, todayKey } from './db.js';
 import { WEIGHTS, weightOf } from './engine.js';
 
 export async function renderSettingsTab(container) {
@@ -58,6 +58,21 @@ export async function renderSettingsTab(container) {
       <div class="settings-row" id="importBtn">
         <span class="settings-row-icon">📥</span>
         <span class="settings-row-label">데이터 가져오기</span>
+        <span class="settings-row-arrow">›</span>
+      </div>
+      <div class="settings-row" id="deleteLastBtn">
+        <span class="settings-row-icon">🗑</span>
+        <span class="settings-row-label">마지막 기록 삭제</span>
+        <span class="settings-row-value" id="lastSessionDate" style="color:var(--text-tertiary)">로딩중</span>
+        <span class="settings-row-arrow">›</span>
+      </div>
+    </div>
+
+    <div class="section-label" style="padding:20px 20px 6px">위험 구역</div>
+    <div class="settings-group">
+      <div class="settings-row" id="resetAllBtn">
+        <span class="settings-row-icon">⚠️</span>
+        <span class="settings-row-label" style="color:var(--danger)">전체 데이터 초기화</span>
         <span class="settings-row-arrow">›</span>
       </div>
     </div>
@@ -137,6 +152,67 @@ export async function renderSettingsTab(container) {
     }
   });
 }
+
+// ── 마지막 기록 삭제 ──
+  const allSessions = await getAllSessions();
+  const sorted = allSessions.sort((a, b) => b.date.localeCompare(a.date));
+  const lastSession = sorted[0];
+  const lastDateEl = document.getElementById('lastSessionDate');
+
+  if (lastSession) {
+    lastDateEl.textContent = lastSession.date;
+  } else {
+    lastDateEl.textContent = '없음';
+  }
+
+  document.getElementById('deleteLastBtn').addEventListener('click', async () => {
+    if (!lastSession) {
+      alert('삭제할 기록이 없습니다.');
+      return;
+    }
+    if (!confirm(`${lastSession.date} 기록을 삭제할까요?\n연속 기록도 함께 되돌려집니다.`)) return;
+
+    await deleteSession(lastSession.id);
+
+    // 연속 기록 -1 되돌리기
+    for (const hand of ['left', 'right']) {
+      const s = profile[hand].streak;
+      if (s > 0) profile[hand].streak = Math.max(0, s - 1);
+      else if (s < 0) profile[hand].streak = Math.min(0, s + 1);
+    }
+    state.profile = profile;
+    await saveProfile(profile);
+
+    alert('삭제 완료');
+    renderSettingsTab(container);
+  });
+
+  // ── 전체 초기화 ──
+  document.getElementById('resetAllBtn').addEventListener('click', async () => {
+    if (!confirm('모든 훈련 기록과 프로필이 삭제됩니다.\n정말 초기화할까요?')) return;
+    if (!confirm('⚠️ 되돌릴 수 없습니다. 계속할까요?')) return;
+
+    // sessions 전체 삭제
+    for (const s of allSessions) {
+      await deleteSession(s.id);
+    }
+
+    // profile 삭제 → 온보딩으로
+    const { initDB } = await import('./db.js');
+    const db = await initDB();
+
+    // profile store 직접 clear
+    await new Promise((res, rej) => {
+      const tx  = db.transaction('profile', 'readwrite');
+      const req = tx.objectStore('profile').clear();
+      req.onsuccess = res;
+      req.onerror   = rej;
+    });
+
+    state.profile = null;
+    alert('초기화 완료. 앱을 다시 시작합니다.');
+    window.location.reload();
+  });
 
 // ── 무게 선택 시트 ────────────────────────
 function showWeightPicker(hand, profile, container) {
