@@ -69,22 +69,36 @@ function renderTrainHome(container, profile, session) {
           ${renderStreakBar('right', rStreak)}
         </div>
 
+        <!-- 세션 구성은 접힘 토글로 변경 — 기본 숨김 -->
         <div>
-          <div class="section-label" style="margin-bottom:8px">오늘 세션 구성</div>
-          ${renderSessionPreview(profile)}
+          <button id="previewToggle" style="display:flex;align-items:center;gap:6px;background:none;border:none;
+            color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer;padding:0;width:100%">
+            <span class="section-label" style="margin:0">오늘 세션 구성</span>
+            <span id="previewArrow" style="margin-left:auto;font-size:12px;transition:transform 0.2s">▼</span>
+          </button>
+          <div id="previewBody" style="display:none;margin-top:8px">
+            ${renderSessionPreview(profile)}
+          </div>
         </div>
+
+        ${session
+          ? `<button class="btn-primary" id="resumeBtn">이어하기</button>
+             <button class="btn-secondary" style="margin-top:8px" id="restartBtn">새로 시작</button>`
+          : `<button class="btn-primary" id="startBtn">훈련 시작 →</button>`
+        }
 
       </div>
     </div>
-
-    <div style="padding:16px 20px 0">
-      ${session
-        ? `<button class="btn-primary" id="resumeBtn">이어하기</button>
-           <button class="btn-secondary" style="margin-top:10px" id="restartBtn">새로 시작</button>`
-        : `<button class="btn-primary" id="startBtn">훈련 시작</button>`
-      }
-    </div>
   `;
+
+  // 세션 구성 토글
+  document.getElementById('previewToggle')?.addEventListener('click', () => {
+    const body  = document.getElementById('previewBody');
+    const arrow = document.getElementById('previewArrow');
+    const open  = body.style.display === 'none';
+    body.style.display  = open ? 'block' : 'none';
+    arrow.style.transform = open ? 'rotate(180deg)' : '';
+  });
 
   if (session) {
     document.getElementById('resumeBtn').addEventListener('click', () =>
@@ -194,6 +208,15 @@ function startSession(container, profile, session) {
   renderBlock(container, session);
 }
 
+// 블록 타입별 테마
+const BLOCK_THEME = {
+  warmup_a: { color: '#7fb3ff', label: '워밍업',   accent: 'rgba(127,179,255,0.15)' },
+  warmup_b: { color: '#7fb3ff', label: '워밍업',   accent: 'rgba(127,179,255,0.15)' },
+  main:     { color: '#6aa3ff', label: '메인 세트', accent: 'rgba(79,143,255,0.20)' },
+  negative: { color: '#f472b6', label: '네거티브',  accent: 'rgba(244,114,182,0.15)' },
+  holding:  { color: '#34d399', label: '홀딩',      accent: 'rgba(52,211,153,0.15)' },
+};
+
 function renderBlock(container, session) {
   const idx   = session.currentIdx;
   const block = session.blocks[idx];
@@ -204,14 +227,15 @@ function renderBlock(container, session) {
     return;
   }
 
-  const pct = Math.round((idx / total) * 100);
+  const pct   = Math.round((idx / total) * 100);
+  const theme = BLOCK_THEME[block.type] || BLOCK_THEME.main;
 
   const headerHTML = `
-    <div class="session-header">
+    <div class="session-header" style="border-bottom:2px solid ${theme.color}22">
       <div class="session-progress-bar">
-        <div class="session-progress-fill" style="width:${pct}%"></div>
+        <div class="session-progress-fill" style="width:${pct}%;background:${theme.color}"></div>
       </div>
-      <span class="session-step-label">${idx + 1} / ${total}</span>
+      <span class="session-step-label" style="color:${theme.color}">${idx + 1} / ${total}</span>
     </div>
   `;
 
@@ -276,30 +300,43 @@ async function persistBlock(session, idx, result) {
 // ── 웜업 A/B (횟수 카운트) ────────────────
 function renderRepBlock(container, session, headerHTML, block, idx) {
   const typeLabel = block.type === 'warmup_a' ? '웜업 A' : '웜업 B';
-  let reps = 0;
   const target = block.reps;
+  const theme  = BLOCK_THEME[block.type];
+  let reps = 0;
+
+  function repGrid(selected, max) {
+    return Array.from({ length: max + 1 }, (_, i) => {
+      const isSelected = i === selected;
+      const isTarget   = i === max;
+      return `<button class="rep-grid-btn ${isSelected ? 'selected' : ''} ${isTarget ? 'target' : ''}"
+        data-rep="${i}"
+        style="${isSelected ? `background:${theme.color};color:#fff;border-color:${theme.color};` : ''}
+               ${isTarget && !isSelected ? `border-color:${theme.color}66;color:${theme.color};` : ''}">
+        ${i}
+      </button>`;
+    }).join('');
+  }
 
   container.innerHTML = `
     <div class="session-screen">
       ${headerHTML}
-      <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:16px">
-        <div class="block-card">
-          <div class="block-card-header">
-            <span class="block-type-label">${typeLabel}</span>
+      <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:14px">
+        <div class="block-card" style="border-color:${theme.color}33">
+          <div class="block-card-header" style="background:${theme.accent}">
+            <span class="block-type-label" style="color:${theme.color}">${typeLabel}</span>
             <span class="hand-badge ${block.hand}">${block.hand === 'left' ? '왼손' : '오른손'}</span>
           </div>
-          <div class="block-card-body">
-            <div style="font-size:15px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);font-weight:600">
-              ${block.weight}kg
+          <div class="block-card-body" style="gap:16px">
+            <div style="display:flex;align-items:center;gap:16px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;
+                          letter-spacing:-0.04em;line-height:1;color:${theme.color}" id="repNum">0</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="font-size:13px;color:var(--text-secondary)">목표 <strong style="color:var(--text-primary)">${target}회</strong></div>
+                <div style="font-size:13px;font-family:'JetBrains Mono',monospace;
+                            color:var(--text-secondary);font-weight:600">${block.weight}kg</div>
+              </div>
             </div>
-            <div class="rep-counter">
-              <div class="rep-number" id="repNum">0</div>
-              <div class="rep-target">목표 ${target}회</div>
-            </div>
-            <div class="rep-controls">
-              <button class="rep-btn" id="repMinus">−</button>
-              <button class="rep-btn" id="repPlus" style="width:64px;height:64px;font-size:30px;background:var(--accent-dim);border-color:var(--accent)">+</button>
-            </div>
+            <div class="rep-grid" id="repGrid">${repGrid(0, target)}</div>
           </div>
         </div>
         <button class="done-btn" id="doneBtn">완료</button>
@@ -307,22 +344,18 @@ function renderRepBlock(container, session, headerHTML, block, idx) {
     </div>
   `;
 
-  const numEl  = document.getElementById('repNum');
+  const numEl   = document.getElementById('repNum');
+  const gridEl  = document.getElementById('repGrid');
   const doneBtn = document.getElementById('doneBtn');
 
-  function update() {
+  gridEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.rep-grid-btn');
+    if (!btn) return;
+    reps = parseInt(btn.dataset.rep);
     numEl.textContent = reps;
-    numEl.classList.toggle('complete', reps >= target);
+    numEl.style.color = reps >= target ? 'var(--success)' : theme.color;
+    gridEl.innerHTML  = repGrid(reps, target);
     doneBtn.classList.toggle('success-btn', reps >= target);
-  }
-
-  document.getElementById('repPlus').addEventListener('click', () => {
-    reps = Math.min(reps + 1, 99);
-    update();
-  });
-  document.getElementById('repMinus').addEventListener('click', () => {
-    reps = Math.max(reps - 1, 0);
-    update();
   });
 
   doneBtn.addEventListener('click', async () => {
@@ -333,42 +366,56 @@ function renderRepBlock(container, session, headerHTML, block, idx) {
 
 // ── 메인 세트 ────────────────────────────
 function renderMainBlock(container, session, headerHTML, block, idx) {
-  let reps = 0;
   const target = block.targetReps;
+  const theme  = BLOCK_THEME.main;
+  let reps = 0;
 
-  // 완료된 세트 dots 계산
   const doneSets = session.blocks
     .filter(b => b.type === 'main' && b.hand === block.hand && b.done)
     .length;
 
   const dots = [0,1,2].map(i => {
-    if (i < doneSets)        return `<div class="set-dot done"></div>`;
-    if (i === doneSets)      return `<div class="set-dot current"></div>`;
-    return                          `<div class="set-dot"></div>`;
+    if (i < doneSets)   return `<div class="set-dot done"></div>`;
+    if (i === doneSets) return `<div class="set-dot current"></div>`;
+    return                     `<div class="set-dot"></div>`;
   }).join('');
+
+  function repGrid(selected) {
+    return Array.from({ length: target + 1 }, (_, i) => {
+      const isSelected = i === selected;
+      const isTarget   = i === target;
+      return `<button class="rep-grid-btn ${isSelected ? 'selected' : ''} ${isTarget ? 'target' : ''}"
+        data-rep="${i}"
+        style="${isSelected ? `background:${theme.color};color:#fff;border-color:${theme.color};` : ''}
+               ${isTarget && !isSelected ? `border-color:${theme.color}66;color:${theme.color};` : ''}">
+        ${i}
+      </button>`;
+    }).join('');
+  }
 
   container.innerHTML = `
     <div class="session-screen">
       ${headerHTML}
-      <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:16px">
-        <div class="block-card">
-          <div class="block-card-header">
-            <span class="block-type-label">메인 세트 ${block.set}</span>
+      <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:14px">
+        <div class="block-card" style="border-color:${theme.color}44">
+          <div class="block-card-header" style="background:${theme.accent}">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span class="block-type-label" style="color:${theme.color}">메인 세트 ${block.set}</span>
+              <div class="set-indicators">${dots}</div>
+            </div>
             <span class="hand-badge ${block.hand}">${block.hand === 'left' ? '왼손' : '오른손'}</span>
           </div>
-          <div class="block-card-body">
-            <div style="font-size:15px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);font-weight:600">
-              ${block.weight}kg
+          <div class="block-card-body" style="gap:16px">
+            <div style="display:flex;align-items:center;gap:16px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;
+                          letter-spacing:-0.04em;line-height:1;color:${theme.color}" id="repNum">0</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="font-size:13px;color:var(--text-secondary)">목표 <strong style="color:var(--text-primary)">${target}회</strong></div>
+                <div style="font-size:13px;font-family:'JetBrains Mono',monospace;
+                            color:var(--text-secondary);font-weight:600">${block.weight}kg</div>
+              </div>
             </div>
-            <div class="set-indicators">${dots}</div>
-            <div class="rep-counter">
-              <div class="rep-number" id="repNum">0</div>
-              <div class="rep-target">목표 ${target}회</div>
-            </div>
-            <div class="rep-controls">
-              <button class="rep-btn" id="repMinus">−</button>
-              <button class="rep-btn" id="repPlus" style="width:64px;height:64px;font-size:30px;background:var(--accent-dim);border-color:var(--accent)">+</button>
-            </div>
+            <div class="rep-grid" id="repGrid">${repGrid(0)}</div>
           </div>
         </div>
         <button class="done-btn" id="doneBtn">세트 완료</button>
@@ -379,25 +426,21 @@ function renderMainBlock(container, session, headerHTML, block, idx) {
   const numEl   = document.getElementById('repNum');
   const doneBtn = document.getElementById('doneBtn');
 
-  function update() {
-    numEl.textContent = reps;
-    numEl.classList.toggle('complete', reps >= target);
-    doneBtn.classList.toggle('success-btn', reps >= target);
-  }
+  const gridEl = document.getElementById('repGrid');
 
-  document.getElementById('repPlus').addEventListener('click', () => {
-    reps = Math.min(reps + 1, 99);
-    update();
-  });
-  document.getElementById('repMinus').addEventListener('click', () => {
-    reps = Math.max(reps - 1, 0);
-    update();
+  gridEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.rep-grid-btn');
+    if (!btn) return;
+    reps = parseInt(btn.dataset.rep);
+    numEl.textContent  = reps;
+    numEl.style.color  = reps >= target ? 'var(--success)' : theme.color;
+    gridEl.innerHTML   = repGrid(reps);
+    doneBtn.classList.toggle('success-btn', reps >= target);
   });
 
   doneBtn.addEventListener('click', async () => {
     await persistBlock(session, idx, { reps });
 
-    // 마지막 메인세트(세트3-우)면 성공 여부 즉시 계산
     const hand = block.hand;
     if (block.set === 3 && hand === 'right') {
       for (const h of ['left', 'right']) {
@@ -419,13 +462,14 @@ function renderNegativeBlock(container, session, headerHTML, block, idx) {
   let timerId  = null;
   const CIRCUM = 502;
 
+  const themeNeg = BLOCK_THEME.negative;
   container.innerHTML = `
     <div class="session-screen">
       ${headerHTML}
       <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:16px">
-        <div class="block-card">
-          <div class="block-card-header">
-            <span class="block-type-label">네거티브</span>
+        <div class="block-card" style="border-color:${themeNeg.color}44">
+          <div class="block-card-header" style="background:${themeNeg.accent}">
+            <span class="block-type-label" style="color:${themeNeg.color}">네거티브</span>
             <span class="hand-badge ${block.hand}">${block.hand === 'left' ? '왼손' : '오른손'}</span>
           </div>
           <div class="block-card-body">
@@ -508,13 +552,14 @@ function renderHoldingBlock(container, session, headerHTML, block, idx) {
   let startTs = null;
   const CIRCUM = 502;
 
+  const themeHold = BLOCK_THEME.holding;
   container.innerHTML = `
     <div class="session-screen">
       ${headerHTML}
       <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:16px">
-        <div class="block-card">
-          <div class="block-card-header">
-            <span class="block-type-label">홀딩</span>
+        <div class="block-card" style="border-color:${themeHold.color}44">
+          <div class="block-card-header" style="background:${themeHold.accent}">
+            <span class="block-type-label" style="color:${themeHold.color}">홀딩</span>
             <span class="hand-badge ${block.hand}">${block.hand === 'left' ? '왼손' : '오른손'}</span>
           </div>
           <div class="block-card-body">
