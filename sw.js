@@ -2,23 +2,26 @@
 //  sw.js — SH Grip Pro Service Worker
 // ─────────────────────────────────────────
 
-const APP_VERSION  = 'v1.0.0';
-const CACHE_NAME   = `sh-grip-pro-${APP_VERSION}`;
+const APP_VERSION = 'v1.0.0';
+const CACHE_NAME  = `sh-grip-pro-${APP_VERSION}`;
+
+// GitHub Pages 서브경로 자동 감지
+const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/css/main.css',
-  '/js/app.js',
-  '/js/db.js',
-  '/js/engine.js',
-  '/js/session.js',
-  '/js/history.js',
-  '/js/stats.js',
-  '/js/settings.js',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/css/main.css',
+  BASE + '/js/app.js',
+  BASE + '/js/db.js',
+  BASE + '/js/engine.js',
+  BASE + '/js/session.js',
+  BASE + '/js/history.js',
+  BASE + '/js/stats.js',
+  BASE + '/js/settings.js',
+  BASE + '/manifest.json',
+  BASE + '/icons/icon-192.png',
+  BASE + '/icons/icon-512.png',
 ];
 
 // ── 설치 ─────────────────────────────────
@@ -45,10 +48,7 @@ self.addEventListener('activate', (e) => {
 
 // ── 패치 (캐시 우선, 네트워크 폴백) ──────
 self.addEventListener('fetch', (e) => {
-  // GET 요청만 처리
   if (e.request.method !== 'GET') return;
-
-  // chrome-extension 등 외부 요청 무시
   if (!e.request.url.startsWith(self.location.origin)) return;
 
   e.respondWith(
@@ -66,9 +66,8 @@ self.addEventListener('fetch', (e) => {
             return response;
           })
           .catch(() => {
-            // 오프라인 + 캐시 미스 → index.html 반환 (SPA fallback)
             if (e.request.headers.get('accept')?.includes('text/html')) {
-              return caches.match('/index.html');
+              return caches.match(BASE + '/index.html');
             }
           });
       })
