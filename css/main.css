@@ -9,20 +9,20 @@
 /* ── 토큰 ─────────────────────────────────── */
 :root {
   /* 배경 레이어 */
-  --bg-base:       #0a0a0f;
-  --bg-elevated:   #13131a;
-  --bg-card:       #1a1a24;
-  --bg-card-2:     #20202e;
-  --bg-input:      #16161f;
+  --bg-base:       #080810;
+  --bg-elevated:   #141420;
+  --bg-card:       #1e1e2e;
+  --bg-card-2:     #26263a;
+  --bg-input:      #1a1a28;
 
   /* 테두리 */
-  --border:        rgba(255,255,255,0.07);
-  --border-subtle: rgba(255,255,255,0.04);
+  --border:        rgba(255,255,255,0.14);
+  --border-subtle: rgba(255,255,255,0.08);
 
   /* 텍스트 */
-  --text-primary:  #f0f0f8;
-  --text-secondary:#8888aa;
-  --text-tertiary: #555570;
+  --text-primary:  #f5f5fd;
+  --text-secondary:#a8a8c8;
+  --text-tertiary: #707090;
 
   /* 액센트 — 악력의 힘을 상징하는 전기청색 */
   --accent:        #4f8fff;
@@ -113,7 +113,7 @@ body {
   max-width: 480px;
   height: calc(var(--tab-bar-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background: rgba(13,13,20,0.85);
+  background: rgba(18,18,28,0.92);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-top: 1px solid var(--border);
@@ -132,7 +132,7 @@ body {
   border: none;
   cursor: pointer;
   padding: 8px 0;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   transition: color 0.2s var(--ease-out);
   position: relative;
 }
@@ -159,7 +159,7 @@ body {
 }
 
 .tab-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -212,7 +212,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -318,7 +318,7 @@ body {
 
 /* ── 페이지 헤더 ──────────────────────────── */
 .page-header {
-  padding: 56px 20px 8px;
+  padding: 48px 20px 8px;
 }
 
 .page-title {
@@ -342,7 +342,7 @@ body {
 .section-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 10px;
@@ -409,9 +409,9 @@ body {
 
 .today-status {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255,255,255,0.16);
   border-radius: var(--radius-xl);
-  padding: 24px;
+  padding: 20px;
   margin-top: 16px;
   display: flex;
   flex-direction: column;
@@ -425,7 +425,7 @@ body {
 }
 
 .status-item {
-  background: var(--bg-elevated);
+  background: var(--bg-card-2);
   border-radius: var(--radius-md);
   padding: 14px;
   display: flex;
@@ -434,9 +434,9 @@ body {
 }
 
 .status-item-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -456,7 +456,7 @@ body {
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  background: var(--bg-elevated);
+  background: var(--bg-card-2);
   border-radius: var(--radius-md);
 }
 
@@ -510,7 +510,7 @@ body {
 
 .session-step-label {
   font-size: 13px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -594,7 +594,7 @@ body {
 
 .rep-target {
   font-size: 14px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 
 .rep-controls {
@@ -672,7 +672,7 @@ body {
 
 .timer-label {
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 
 /* 완료 버튼 */
@@ -811,7 +811,7 @@ body {
 .result-card-label {
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -860,7 +860,7 @@ body {
 
 .history-date-mon {
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -886,7 +886,7 @@ body {
 
 .history-result {
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 
 .history-status {
@@ -986,7 +986,7 @@ body {
 }
 
 .settings-row-arrow {
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -1014,7 +1014,7 @@ body {
 
 .empty-desc {
   font-size: 14px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
@@ -1041,7 +1041,7 @@ body {
   width: 100%;
   max-width: 480px;
   max-height: 80dvh;
-  background: var(--bg-elevated);
+  background: var(--bg-card-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   overflow-y: auto;
