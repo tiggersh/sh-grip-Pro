@@ -213,7 +213,7 @@ export async function renderSettingsTab(container) {
     alert('초기화 완료. 앱을 다시 시작합니다.');
     window.location.reload();
   });
-
+}
 // ── 무게 선택 시트 ────────────────────────
 function showWeightPicker(hand, profile, container) {
   const current = profile[hand].stage;
