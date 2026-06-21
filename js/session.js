@@ -330,7 +330,7 @@ function renderRepBlock(container, session, headerHTML, block, idx) {
     <div class="session-screen">
       ${headerHTML}
       <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:14px">
-        <div class="block-card" style="border-color:${theme.color}33">
+        <div class="block-card" style="border-color:${handColor}33;border-left:3px solid ${handColor}">
           <div class="block-card-header" style="background:${theme.accent}">
             <span class="block-type-label" style="color:${theme.color}">${typeLabel}</span>
             <span class="hand-badge ${block.hand}">${block.hand === 'left' ? '왼손' : '오른손'}</span>
@@ -476,7 +476,7 @@ function renderNegativeBlock(container, session, headerHTML, block, idx) {
     <div class="session-screen">
       ${headerHTML}
       <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:16px">
-        <div class="block-card" style="border-color:${themeNeg.color}44">
+        <div class="block-card" style="border-color:${themeNeg.color}44;border-left:3px solid ${handColor}">
           <div class="block-card-header" style="background:${themeNeg.accent}">
             <span class="block-type-label" style="color:${themeNeg.color}">네거티브</span>
             <span class="hand-badge ${block.hand}">${block.hand === 'left' ? '왼손' : '오른손'}</span>
@@ -522,20 +522,33 @@ function renderNegativeBlock(container, session, headerHTML, block, idx) {
 
   startBtn.addEventListener('click', () => {
     if (running) return;
-    running = true;
-    startBtn.textContent = '버티는 중...';
     startBtn.disabled = true;
+    startBtn.textContent = '3';
+    startBtn.style.fontSize = '28px';
 
-    timerId = setInterval(() => {
-      seconds--;
-      updateRing();
-      if (seconds <= 0) {
-        clearInterval(timerId);
-        running = false;
-        doneBtn.style.display = 'block';
-        skipBtn.style.display = 'none';
-        startBtn.style.display = 'none';
-        showToast('네거티브 완료! 💪');
+    let countdown = 3;
+    const countTimer = setInterval(() => {
+      countdown--;
+      if (countdown <= 0) {
+        clearInterval(countTimer);
+        startBtn.textContent = '버티는 중...';
+        startBtn.style.fontSize = '';
+        running = true;
+
+        timerId = setInterval(() => {
+          seconds--;
+          updateRing();
+          if (seconds <= 0) {
+            clearInterval(timerId);
+            running = false;
+            doneBtn.style.display = 'block';
+            skipBtn.style.display = 'none';
+            startBtn.style.display = 'none';
+            showToast('네거티브 완료! 💪');
+          }
+        }, 1000);
+      } else {
+        startBtn.textContent = String(countdown);
       }
     }, 1000);
   });
@@ -566,7 +579,7 @@ function renderHoldingBlock(container, session, headerHTML, block, idx) {
     <div class="session-screen">
       ${headerHTML}
       <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:16px">
-        <div class="block-card" style="border-color:${themeHold.color}44">
+       <div class="block-card" style="border-color:${themeHold.color}44;border-left:3px solid ${handColor}">
           <div class="block-card-header" style="background:${themeHold.accent}">
             <span class="block-type-label" style="color:${themeHold.color}">홀딩</span>
             <span class="hand-badge ${block.hand}">${block.hand === 'left' ? '왼손' : '오른손'}</span>
@@ -643,18 +656,31 @@ function renderHoldingBlock(container, session, headerHTML, block, idx) {
 
   startBtn.addEventListener('click', () => {
     if (running) return;
-    running  = true;
-    startTs  = Date.now();
-    startBtn.style.display = 'none';
-    stopBtn.style.display  = 'block';
+    startBtn.disabled = true;
+    startBtn.textContent = '3';
+    startBtn.style.fontSize = '28px';
 
-    timerId = setInterval(() => {
-      elapsed = Math.round((Date.now() - startTs) / 1000);
-      updateRing();
-      if (elapsed >= MAX) {
-        stopTimer(true);
+    let countdown = 3;
+    const countTimer = setInterval(() => {
+      countdown--;
+      if (countdown <= 0) {
+        clearInterval(countTimer);
+        startBtn.style.display = 'none';
+        stopBtn.style.display  = 'block';
+        running = true;
+        startTs = Date.now();
+
+        timerId = setInterval(() => {
+          elapsed = Math.round((Date.now() - startTs) / 1000);
+          updateRing();
+          if (elapsed >= MAX) {
+            stopTimer(true);
+          }
+        }, 100);
+      } else {
+        startBtn.textContent = String(countdown);
       }
-    }, 100);
+    }, 1000);
   });
 
   stopBtn.addEventListener('click', () => stopTimer(false));
