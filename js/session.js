@@ -312,6 +312,8 @@ async function persistBlock(session, idx, result) {
 
 // ── 웜업 A/B (횟수 카운트) ────────────────
 function renderRepBlock(container, session, headerHTML, block, idx, handColor) {
+  // handColor 파라미터로 못 받은 경우 폴백
+  handColor = handColor || (block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)');
   const typeLabel = block.type === 'warmup_a' ? '웜업 A' : '웜업 B';
   const target = block.reps;
   const theme  = BLOCK_THEME[block.type];
@@ -379,6 +381,7 @@ function renderRepBlock(container, session, headerHTML, block, idx, handColor) {
 
 // ── 메인 세트 ────────────────────────────
 function renderMainBlock(container, session, headerHTML, block, idx, handColor) {
+  handColor = handColor || (block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)');
   const target = block.targetReps;
   const theme  = BLOCK_THEME.main;
   let reps = 0;
@@ -460,6 +463,7 @@ function renderMainBlock(container, session, headerHTML, block, idx, handColor) 
 
 // ── 네거티브 (5초 버티기 타이머) ──────────
 function renderNegativeBlock(container, session, headerHTML, block, idx, handColor) {
+  handColor = handColor || (block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)');
   const DURATION = 5;
   let seconds  = DURATION;
   let running  = false;
@@ -562,6 +566,7 @@ function renderNegativeBlock(container, session, headerHTML, block, idx, handCol
 
 // ── 홀딩 (최대 20초) ─────────────────────
 function renderHoldingBlock(container, session, headerHTML, block, idx, handColor) {
+  handColor = handColor || (block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)');
   const MAX = 20;
   let elapsed = 0;
   let running = false;
