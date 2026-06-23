@@ -192,6 +192,10 @@ function renderSessionPreview(profile) {
 //  세션 생성
 // ══════════════════════════════════════════
 async function createSession(profile) {
+  // 같은 날짜 세션이 이미 존재하면 재사용 (date unique index 충돌 방지)
+  const existing = await getSessionByDate(todayKey());
+  if (existing) return existing;
+
   const blocks = buildSession(profile.left.stage, profile.right.stage)
     .map(b => ({ ...b, done: false, result: null }));
 
