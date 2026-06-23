@@ -99,10 +99,14 @@ export function judgeStreak(mainSuccess, currentStreak, currentStage) {
   let event = null;
 
   if (streak >= SUCCESS_THRESHOLD) {
-    if (stage < MAX_STAGE) {
-      stage += 1;
-      event  = 'promoted';
-    }
+  if (stage < MAX_STAGE) {
+    stage += 1;
+    event = 'promoted';
+  } else {
+    event = 'max_stage';
+  }
+  streak = 0;
+  }
     streak = 0; // 진급 후 리셋
   } else if (streak <= FAIL_THRESHOLD) {
     if (stage > MIN_STAGE) {
