@@ -153,7 +153,8 @@ async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
 
   try {
-    const reg = await navigator.serviceWorker.register('/sw.js');
+    const swPath = new URL('../../sw.js', import.meta.url).pathname;
+    const reg = await navigator.serviceWorker.register(swPath);
 
     // 업데이트 감지 → 토스트 + 자동 적용
     reg.addEventListener('updatefound', () => {
