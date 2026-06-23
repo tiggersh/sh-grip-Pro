@@ -6,7 +6,7 @@ import { state } from './app.js';
 import {
   buildSession, needsRest, calcMainSuccess,
   calcHoldingSuccess, applySessionResult,
-  weightOf, formatWeight
+  weightOf
 } from './engine.js';
 import {
   getProfile, saveProfile,
@@ -78,7 +78,6 @@ function renderTrainHome(container, profile, session) {
           ${renderStreakBar('right', rStreak)}
         </div>
 
-        <!-- 세션 구성은 접힘 토글로 변경 — 기본 숨김 -->
         <div>
           <button id="previewToggle" style="display:flex;align-items:center;gap:6px;background:none;border:none;
             color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer;padding:0;width:100%">
@@ -100,12 +99,11 @@ function renderTrainHome(container, profile, session) {
     </div>
   `;
 
-  // 세션 구성 토글
   document.getElementById('previewToggle')?.addEventListener('click', () => {
     const body  = document.getElementById('previewBody');
     const arrow = document.getElementById('previewArrow');
     const open  = body.style.display === 'none';
-    body.style.display  = open ? 'block' : 'none';
+    body.style.display    = open ? 'block' : 'none';
     arrow.style.transform = open ? 'rotate(180deg)' : '';
   });
 
@@ -118,6 +116,8 @@ function renderTrainHome(container, profile, session) {
       session.blocks = buildSession(profile.left.stage, profile.right.stage)
         .map(b => ({ ...b, done: false, result: null }));
       session.currentIdx = 0;
+      session.left  = { stage: profile.left.stage,  mainSuccess: false, sets: [], holding: null, negative: false };
+      session.right = { stage: profile.right.stage, mainSuccess: false, sets: [], holding: null, negative: false };
       await saveSession(session);
       startSession(container, profile, session);
     });
@@ -162,11 +162,11 @@ function renderSessionPreview(profile) {
   const ls = profile.left.stage;
   const rs = profile.right.stage;
   const rows = [
-    ['웜업 A', `${weightOf(Math.max(0, ls-2))}kg`, `${weightOf(Math.max(0, rs-2))}kg`, '12회'],
-    ['웜업 B', `${weightOf(Math.max(0, ls-1))}kg`, `${weightOf(Math.max(0, rs-1))}kg`, '8회'],
-    ['메인',   `${weightOf(ls)}kg`, `${weightOf(rs)}kg`, '8회×3'],
+    ['웜업 A',   `${weightOf(Math.max(0, ls-2))}kg`, `${weightOf(Math.max(0, rs-2))}kg`, '12회'],
+    ['웜업 B',   `${weightOf(Math.max(0, ls-1))}kg`, `${weightOf(Math.max(0, rs-1))}kg`, '8회'],
+    ['메인',     `${weightOf(ls)}kg`,                 `${weightOf(rs)}kg`,                 '8회×3'],
     ['네거티브', `${weightOf(Math.min(5, ls+1))}kg`, `${weightOf(Math.min(5, rs+1))}kg`, '5초'],
-    ['홀딩',   `${weightOf(ls)}kg`, `${weightOf(rs)}kg`, 'max20초'],
+    ['홀딩',     `${weightOf(ls)}kg`,                 `${weightOf(rs)}kg`,                 'max20초'],
   ];
   return `
     <div style="background:var(--bg-elevated);border-radius:12px;overflow:hidden">
@@ -200,11 +200,11 @@ async function createSession(profile) {
     .map(b => ({ ...b, done: false, result: null }));
 
   const session = {
-    date: todayKey(),
-    status: 'in_progress',
-    createdAt: Date.now(),
+    date:        todayKey(),
+    status:      'in_progress',
+    createdAt:   Date.now(),
     completedAt: null,
-    currentIdx: 0,
+    currentIdx:  0,
     blocks,
     left:  { stage: profile.left.stage,  mainSuccess: false, sets: [], holding: null, negative: false },
     right: { stage: profile.right.stage, mainSuccess: false, sets: [], holding: null, negative: false },
@@ -231,19 +231,26 @@ function renderBlock(container, session) {
     return;
   }
 
-  const pct   = Math.round((idx / total) * 100);
-  const theme = BLOCK_THEME[block.type] || BLOCK_THEME.main;
-
+  const pct       = Math.round((idx / total) * 100);
+  const theme     = BLOCK_THEME[block.type] || BLOCK_THEME.main;
   const handColor = block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)';
   const handLabel = block.hand === 'left' ? '✋ 왼손' : '🤚 오른손';
   const handSide  = block.hand === 'left' ? 'left' : 'right';
 
   const headerHTML = `
     <div class="session-header" style="border-bottom:2px solid ${theme.color}22">
+      ${idx > 0 ? `
+        <button id="prevBlockBtn" style="
+          background:none;border:none;cursor:pointer;
+          color:var(--text-secondary);font-size:22px;
+          padding:4px 10px 4px 0;line-height:1;flex-shrink:0;
+          transition:color 0.15s;
+        ">←</button>
+      ` : ''}
       <div class="session-progress-bar">
         <div class="session-progress-fill" style="width:${pct}%;background:${theme.color}"></div>
       </div>
-      <span class="session-step-label" style="color:${theme.color}">${idx + 1} / ${total}</span>
+      <span class="session-step-label" style="color:${theme.color};margin-left:10px">${idx + 1} / ${total}</span>
     </div>
     <div class="hand-indicator hand-indicator-${handSide}">
       <div class="hand-indicator-bar" style="background:${handColor}"></div>
@@ -253,20 +260,31 @@ function renderBlock(container, session) {
   `;
 
   switch (block.type) {
-  case 'warmup_a':
-  case 'warmup_b':
-    renderRepBlock(container, session, headerHTML, block, idx, handColor);
-    break;
-  case 'main':
-    renderMainBlock(container, session, headerHTML, block, idx, handColor);
-    break;
-  case 'negative':
-    renderNegativeBlock(container, session, headerHTML, block, idx, handColor);
-    break;
-  case 'holding':
-    renderHoldingBlock(container, session, headerHTML, block, idx, handColor);
-    break;
+    case 'warmup_a':
+    case 'warmup_b':
+      renderRepBlock(container, session, headerHTML, block, idx, handColor);
+      break;
+    case 'main':
+      renderMainBlock(container, session, headerHTML, block, idx, handColor);
+      break;
+    case 'negative':
+      renderNegativeBlock(container, session, headerHTML, block, idx, handColor);
+      break;
+    case 'holding':
+      renderHoldingBlock(container, session, headerHTML, block, idx, handColor);
+      break;
   }
+
+  // 이전 블록 버튼 이벤트 등록
+  requestAnimationFrame(() => {
+    const prevBtn = document.getElementById('prevBlockBtn');
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        if (!confirm('이전 블록으로 돌아갈까요?')) return;
+        prevBlock(container, session);
+      });
+    }
+  });
 }
 
 // ── 다음 블록으로 이동 (휴식 포함) ────────
@@ -277,11 +295,47 @@ function nextBlock(container, session) {
   session.currentIdx++;
 
   if (needsRest(current, next) && next) {
-    renderRest(container, session, 120); // 2분
+    renderRest(container, session, 120);
   } else {
     saveSession(session);
     renderBlock(container, session);
   }
+}
+
+// ── 이전 블록으로 이동 ────────────────────
+function prevBlock(container, session) {
+  if (session.currentIdx <= 0) return;
+
+  // 현재 블록 초기화 (아직 완료 안 된 상태이므로 result만 정리)
+  const currentBlock = session.blocks[session.currentIdx];
+  currentBlock.done   = false;
+  currentBlock.result = null;
+
+  // 이전 블록으로 이동
+  session.currentIdx--;
+  const prevB = session.blocks[session.currentIdx];
+
+  // 이전 블록이 완료 상태였으면 데이터 되돌리기
+  if (prevB.done) {
+    if (prevB.type === 'main') {
+      const hand = prevB.hand;
+      if (session[hand].sets && session[hand].sets.length > 0) {
+        session[hand].sets.pop();
+      }
+      session[hand].mainSuccess = false;
+    }
+    if (prevB.type === 'negative') {
+      session[prevB.hand].negative = false;
+    }
+    if (prevB.type === 'holding') {
+      session[prevB.hand].holding = null;
+    }
+    prevB.done   = false;
+    // result는 유지 — 이전 입력값 복원에 사용
+  }
+
+  saveSession(session);
+  renderBlock(container, session);
 }
 
 // ── 세션 저장 헬퍼 ───────────────────────
@@ -312,12 +366,14 @@ async function persistBlock(session, idx, result) {
 
 // ── 웜업 A/B (횟수 카운트) ────────────────
 function renderRepBlock(container, session, headerHTML, block, idx, handColor) {
-  // handColor 파라미터로 못 받은 경우 폴백
   handColor = handColor || (block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)');
+
   const typeLabel = block.type === 'warmup_a' ? '웜업 A' : '웜업 B';
-  const target = block.reps;
-  const theme  = BLOCK_THEME[block.type];
-  let reps = 0;
+  const target    = block.reps;
+  const theme     = BLOCK_THEME[block.type];
+
+  // 이전 입력값 복원
+  let reps = block.result?.reps ?? 0;
 
   function repGrid(selected, max) {
     return Array.from({ length: max + 1 }, (_, i) => {
@@ -344,17 +400,17 @@ function renderRepBlock(container, session, headerHTML, block, idx, handColor) {
           <div class="block-card-body" style="gap:16px">
             <div style="display:flex;align-items:center;gap:16px">
               <div style="font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;
-                          letter-spacing:-0.04em;line-height:1;color:${theme.color}" id="repNum">0</div>
+                          letter-spacing:-0.04em;line-height:1;color:${reps >= target ? 'var(--success)' : theme.color}" id="repNum">${reps}</div>
               <div style="display:flex;flex-direction:column;gap:2px">
                 <div style="font-size:13px;color:var(--text-secondary)">목표 <strong style="color:var(--text-primary)">${target}회</strong></div>
                 <div style="font-size:13px;font-family:'JetBrains Mono',monospace;
                             color:var(--text-secondary);font-weight:600">${block.weight}kg</div>
               </div>
             </div>
-            <div class="rep-grid" id="repGrid">${repGrid(0, target)}</div>
+            <div class="rep-grid" id="repGrid">${repGrid(reps, target)}</div>
           </div>
         </div>
-        <button class="done-btn" id="doneBtn">완료</button>
+        <button class="done-btn ${reps >= target ? 'success-btn' : ''}" id="doneBtn">완료</button>
       </div>
     </div>
   `;
@@ -382,9 +438,12 @@ function renderRepBlock(container, session, headerHTML, block, idx, handColor) {
 // ── 메인 세트 ────────────────────────────
 function renderMainBlock(container, session, headerHTML, block, idx, handColor) {
   handColor = handColor || (block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)');
+
   const target = block.targetReps;
   const theme  = BLOCK_THEME.main;
-  let reps = 0;
+
+  // 이전 입력값 복원
+  let reps = block.result?.reps ?? 0;
 
   const doneSets = session.blocks
     .filter(b => b.type === 'main' && b.hand === block.hand && b.done)
@@ -424,53 +483,53 @@ function renderMainBlock(container, session, headerHTML, block, idx, handColor) 
           <div class="block-card-body" style="gap:16px">
             <div style="display:flex;align-items:center;gap:16px">
               <div style="font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;
-                          letter-spacing:-0.04em;line-height:1;color:${theme.color}" id="repNum">0</div>
+                          letter-spacing:-0.04em;line-height:1;color:${reps >= target ? 'var(--success)' : theme.color}" id="repNum">${reps}</div>
               <div style="display:flex;flex-direction:column;gap:2px">
                 <div style="font-size:13px;color:var(--text-secondary)">목표 <strong style="color:var(--text-primary)">${target}회</strong></div>
                 <div style="font-size:13px;font-family:'JetBrains Mono',monospace;
                             color:var(--text-secondary);font-weight:600">${block.weight}kg</div>
               </div>
             </div>
-            <div class="rep-grid" id="repGrid">${repGrid(0)}</div>
+            <div class="rep-grid" id="repGrid">${repGrid(reps)}</div>
           </div>
         </div>
-        <button class="done-btn" id="doneBtn">세트 완료</button>
+        <button class="done-btn ${reps >= target ? 'success-btn' : ''}" id="doneBtn">세트 완료</button>
       </div>
     </div>
   `;
 
-  const numEl   = document.getElementById('repNum');
-  const doneBtn = document.getElementById('doneBtn');
-
+  const numEl  = document.getElementById('repNum');
   const gridEl = document.getElementById('repGrid');
+  const doneBtn = document.getElementById('doneBtn');
 
   gridEl.addEventListener('click', (e) => {
     const btn = e.target.closest('.rep-grid-btn');
     if (!btn) return;
     reps = parseInt(btn.dataset.rep);
-    numEl.textContent  = reps;
-    numEl.style.color  = reps >= target ? 'var(--success)' : theme.color;
-    gridEl.innerHTML   = repGrid(reps);
+    numEl.textContent = reps;
+    numEl.style.color = reps >= target ? 'var(--success)' : theme.color;
+    gridEl.innerHTML  = repGrid(reps);
     doneBtn.classList.toggle('success-btn', reps >= target);
   });
 
   doneBtn.addEventListener('click', async () => {
-  await persistBlock(session, idx, { reps });
-  nextBlock(container, session);
-});
-
+    await persistBlock(session, idx, { reps });
+    nextBlock(container, session);
+  });
 }
 
 // ── 네거티브 (5초 버티기 타이머) ──────────
 function renderNegativeBlock(container, session, headerHTML, block, idx, handColor) {
   handColor = handColor || (block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)');
-  const DURATION = 5;
-  let seconds  = DURATION;
-  let running  = false;
-  let timerId  = null;
-  const CIRCUM = 502;
 
-  const themeNeg = BLOCK_THEME.negative;
+  const DURATION  = 5;
+  let seconds     = DURATION;
+  let running     = false;
+  let timerId     = null;
+  let countTimer  = null;
+  const CIRCUM    = 502;
+  const themeNeg  = BLOCK_THEME.negative;
+
   container.innerHTML = `
     <div class="session-screen">
       ${headerHTML}
@@ -495,7 +554,8 @@ function renderNegativeBlock(container, session, headerHTML, block, idx, handCol
                 <div class="timer-label">초</div>
               </div>
             </div>
-            <button class="done-btn" id="negStartBtn" style="background:var(--bg-card-2);color:var(--text-primary);box-shadow:none;border:1px solid var(--border)">
+            <button class="done-btn" id="negStartBtn"
+              style="background:var(--bg-card-2);color:var(--text-primary);box-shadow:none;border:1px solid var(--border)">
               시작
             </button>
           </div>
@@ -506,8 +566,8 @@ function renderNegativeBlock(container, session, headerHTML, block, idx, handCol
     </div>
   `;
 
-  const secEl   = document.getElementById('negSec');
-  const ringEl  = document.getElementById('negRing');
+  const secEl    = document.getElementById('negSec');
+  const ringEl   = document.getElementById('negRing');
   const startBtn = document.getElementById('negStartBtn');
   const doneBtn  = document.getElementById('negDoneBtn');
   const skipBtn  = document.getElementById('negSkipBtn');
@@ -519,6 +579,11 @@ function renderNegativeBlock(container, session, headerHTML, block, idx, handCol
     if (seconds <= 1) ringEl.classList.add('danger');
   }
 
+  function cleanup() {
+    clearInterval(timerId);
+    clearInterval(countTimer);
+  }
+
   startBtn.addEventListener('click', () => {
     if (running) return;
     startBtn.disabled = true;
@@ -526,7 +591,7 @@ function renderNegativeBlock(container, session, headerHTML, block, idx, handCol
     startBtn.style.fontSize = '28px';
 
     let countdown = 3;
-    const countTimer = setInterval(() => {
+    countTimer = setInterval(() => {
       countdown--;
       if (countdown <= 0) {
         clearInterval(countTimer);
@@ -538,10 +603,10 @@ function renderNegativeBlock(container, session, headerHTML, block, idx, handCol
           seconds--;
           updateRing();
           if (seconds <= 0) {
-            clearInterval(timerId);
+            cleanup();
             running = false;
-            doneBtn.style.display = 'block';
-            skipBtn.style.display = 'none';
+            doneBtn.style.display  = 'block';
+            skipBtn.style.display  = 'none';
             startBtn.style.display = 'none';
             showToast('네거티브 완료! 💪');
           }
@@ -553,12 +618,13 @@ function renderNegativeBlock(container, session, headerHTML, block, idx, handCol
   });
 
   doneBtn.addEventListener('click', async () => {
+    cleanup();
     await persistBlock(session, idx, { done: true });
     nextBlock(container, session);
   });
 
   skipBtn.addEventListener('click', async () => {
-    clearInterval(timerId);
+    cleanup();
     await persistBlock(session, idx, { done: false });
     nextBlock(container, session);
   });
@@ -567,19 +633,21 @@ function renderNegativeBlock(container, session, headerHTML, block, idx, handCol
 // ── 홀딩 (최대 20초) ─────────────────────
 function renderHoldingBlock(container, session, headerHTML, block, idx, handColor) {
   handColor = handColor || (block.hand === 'left' ? 'var(--left-color)' : 'var(--right-color)');
-  const MAX = 20;
-  let elapsed = 0;
-  let running = false;
-  let timerId = null;
-  let startTs = null;
-  const CIRCUM = 502;
 
+  const MAX       = 20;
+  let elapsed     = 0;
+  let running     = false;
+  let timerId     = null;
+  let countTimer  = null;
+  let startTs     = null;
+  const CIRCUM    = 502;
   const themeHold = BLOCK_THEME.holding;
+
   container.innerHTML = `
     <div class="session-screen">
       ${headerHTML}
       <div style="padding:0 20px;flex:1;display:flex;flex-direction:column;gap:16px">
-       <div class="block-card" style="border-color:${themeHold.color}44;border-left:3px solid ${handColor}">
+        <div class="block-card" style="border-color:${themeHold.color}44;border-left:3px solid ${handColor}">
           <div class="block-card-header" style="background:${themeHold.accent}">
             <span class="block-type-label" style="color:${themeHold.color}">홀딩</span>
             <span class="hand-badge ${block.hand}">${block.hand === 'left' ? '왼손' : '오른손'}</span>
@@ -599,7 +667,6 @@ function renderHoldingBlock(container, session, headerHTML, block, idx, handColo
                 <div class="timer-label">/ 20초</div>
               </div>
             </div>
-
             <div style="display:flex;gap:10px;width:100%">
               <button class="done-btn" id="holdStartBtn" style="background:var(--accent);flex:1">시작</button>
               <button class="done-btn" id="holdStopBtn"
@@ -625,17 +692,19 @@ function renderHoldingBlock(container, session, headerHTML, block, idx, handColo
     const offset = CIRCUM * (1 - fill);
     ringEl.style.strokeDashoffset = offset;
     secEl.textContent = elapsed;
+    if (elapsed >= MAX) ringEl.style.stroke = 'var(--success)';
+  }
 
-    if (elapsed >= MAX) {
-      ringEl.style.stroke = 'var(--success)';
-    }
+  function cleanup() {
+    clearInterval(timerId);
+    clearInterval(countTimer);
   }
 
   function stopTimer(auto = false) {
-    clearInterval(timerId);
+    cleanup();
     running = false;
 
-    if (auto || elapsed >= MAX) {
+    if (auto || elapsed > 0) {
       showToast(elapsed >= MAX ? '홀딩 성공! 🏆' : `${elapsed}초 기록`);
     }
 
@@ -646,11 +715,11 @@ function renderHoldingBlock(container, session, headerHTML, block, idx, handColo
     if (elapsed >= MAX) {
       doneBtn.textContent = '성공 — 완료';
     } else {
-      doneBtn.textContent = `${elapsed}초 기록 — 완료`;
-      doneBtn.style.background = 'var(--bg-card-2)';
-      doneBtn.style.boxShadow  = 'none';
-      doneBtn.style.border     = '1px solid var(--border)';
-      doneBtn.style.color      = 'var(--text-primary)';
+      doneBtn.textContent          = `${elapsed}초 기록 — 완료`;
+      doneBtn.style.background     = 'var(--bg-card-2)';
+      doneBtn.style.boxShadow      = 'none';
+      doneBtn.style.border         = '1px solid var(--border)';
+      doneBtn.style.color          = 'var(--text-primary)';
     }
   }
 
@@ -661,7 +730,7 @@ function renderHoldingBlock(container, session, headerHTML, block, idx, handColo
     startBtn.style.fontSize = '28px';
 
     let countdown = 3;
-    const countTimer = setInterval(() => {
+    countTimer = setInterval(() => {
       countdown--;
       if (countdown <= 0) {
         clearInterval(countTimer);
@@ -673,9 +742,7 @@ function renderHoldingBlock(container, session, headerHTML, block, idx, handColo
         timerId = setInterval(() => {
           elapsed = Math.round((Date.now() - startTs) / 1000);
           updateRing();
-          if (elapsed >= MAX) {
-            stopTimer(true);
-          }
+          if (elapsed >= MAX) stopTimer(true);
         }, 100);
       } else {
         startBtn.textContent = String(countdown);
@@ -686,6 +753,7 @@ function renderHoldingBlock(container, session, headerHTML, block, idx, handColo
   stopBtn.addEventListener('click', () => stopTimer(false));
 
   doneBtn.addEventListener('click', async () => {
+    cleanup();
     const success = calcHoldingSuccess(elapsed);
     session[block.hand].holding = elapsed;
     await persistBlock(session, idx, { seconds: elapsed, success });
@@ -697,7 +765,7 @@ function renderHoldingBlock(container, session, headerHTML, block, idx, handColo
 //  휴식 타이머
 // ══════════════════════════════════════════
 function renderRest(container, session, totalSeconds) {
-  const CIRCUM = 502;
+  const CIRCUM  = 502;
   let remaining = totalSeconds;
   let timerId   = null;
 
@@ -710,7 +778,7 @@ function renderRest(container, session, totalSeconds) {
         <div class="session-progress-bar">
           <div class="session-progress-fill" style="width:${pct}%"></div>
         </div>
-        <span class="session-step-label">${session.currentIdx} / ${session.blocks.length}</span>
+        <span class="session-step-label" style="margin-left:10px">${session.currentIdx} / ${session.blocks.length}</span>
       </div>
       <div class="rest-screen">
         <div class="rest-title">다음 세트까지</div>
@@ -747,7 +815,7 @@ function renderRest(container, session, totalSeconds) {
     remaining--;
     const offset = CIRCUM * (1 - remaining / totalSeconds);
     ringEl.style.strokeDashoffset = offset;
-    ringEl.style.transition = 'stroke-dashoffset 0.9s linear';
+    ringEl.style.transition       = 'stroke-dashoffset 0.9s linear';
     secEl.textContent = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
 
     if (remaining <= 0) {
@@ -762,7 +830,6 @@ function renderRest(container, session, totalSeconds) {
 //  세션 완료
 // ══════════════════════════════════════════
 async function finishSession(container, session) {
-  // 최종 성공 여부 재계산
   for (const hand of ['left', 'right']) {
     session[hand].mainSuccess = calcMainSuccess(session[hand].sets);
   }
@@ -770,7 +837,6 @@ async function finishSession(container, session) {
   session.status      = 'completed';
   session.completedAt = Date.now();
 
-  // 진급 판정 + 프로필 업데이트
   const profile = state.profile;
   const { updatedProfile, result } = applySessionResult(profile, {
     left:  { mainSuccess: session.left.mainSuccess,  sets: session.left.sets },
@@ -785,25 +851,25 @@ async function finishSession(container, session) {
 }
 
 function renderCompleteSummary(container, session, result) {
-  const lSets   = session.left.sets  || [];
-  const rSets   = session.right.sets || [];
-  const lHold   = session.left.holding  ?? '—';
-  const rHold   = session.right.holding ?? '—';
-  const lNeg    = session.left.negative  ? '✓' : '—';
-  const rNeg    = session.right.negative ? '✓' : '—';
+  const lSets = session.left.sets   || [];
+  const rSets = session.right.sets  || [];
+  const lHold = session.left.holding  ?? '—';
+  const rHold = session.right.holding ?? '—';
+  const lNeg  = session.left.negative  ? '✓' : '—';
+  const rNeg  = session.right.negative ? '✓' : '—';
 
   function eventBadge(hand) {
-  const ev = result[hand].event;
-  if (!ev) return '';
-  if (ev === 'promoted') return `
-    <span class="event-badge promoted">⬆ 다음 세션 +1단계 (${weightOf(result[hand].newStage)}kg)</span>`;
-  if (ev === 'demoted') return `
-    <span class="event-badge demoted">⬇ 다음 세션 -1단계 (${weightOf(result[hand].newStage)}kg)</span>`;
-  if (ev === 'max_stage') return `
-    <span class="event-badge" style="background:rgba(212,168,67,0.12);color:#d4a843;border:1px solid rgba(212,168,67,0.25)">
-      🏅 최고 단계 유지중
-    </span>`;
-  return '';
+    const ev = result[hand].event;
+    if (!ev) return '';
+    if (ev === 'promoted') return `
+      <span class="event-badge promoted">⬆ 다음 세션 +1단계 (${weightOf(result[hand].newStage)}kg)</span>`;
+    if (ev === 'demoted') return `
+      <span class="event-badge demoted">⬇ 다음 세션 -1단계 (${weightOf(result[hand].newStage)}kg)</span>`;
+    if (ev === 'max_stage') return `
+      <span class="event-badge" style="background:rgba(212,168,67,0.12);color:#d4a843;border:1px solid rgba(212,168,67,0.25)">
+        🏅 최고 단계 유지중
+      </span>`;
+    return '';
   }
 
   const bothSuccess = session.left.mainSuccess && session.right.mainSuccess;
