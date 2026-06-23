@@ -249,19 +249,19 @@ function renderBlock(container, session) {
   `;
 
   switch (block.type) {
-    case 'warmup_a':
-    case 'warmup_b':
-      renderRepBlock(container, session, headerHTML, block, idx);
-      break;
-    case 'main':
-      renderMainBlock(container, session, headerHTML, block, idx);
-      break;
-    case 'negative':
-      renderNegativeBlock(container, session, headerHTML, block, idx);
-      break;
-    case 'holding':
-      renderHoldingBlock(container, session, headerHTML, block, idx);
-      break;
+  case 'warmup_a':
+  case 'warmup_b':
+    renderRepBlock(container, session, headerHTML, block, idx, handColor);
+    break;
+  case 'main':
+    renderMainBlock(container, session, headerHTML, block, idx, handColor);
+    break;
+  case 'negative':
+    renderNegativeBlock(container, session, headerHTML, block, idx, handColor);
+    break;
+  case 'holding':
+    renderHoldingBlock(container, session, headerHTML, block, idx, handColor);
+    break;
   }
 }
 
@@ -307,7 +307,7 @@ async function persistBlock(session, idx, result) {
 // ══════════════════════════════════════════
 
 // ── 웜업 A/B (횟수 카운트) ────────────────
-function renderRepBlock(container, session, headerHTML, block, idx) {
+function renderRepBlock(container, session, headerHTML, block, idx, handColor) {
   const typeLabel = block.type === 'warmup_a' ? '웜업 A' : '웜업 B';
   const target = block.reps;
   const theme  = BLOCK_THEME[block.type];
@@ -374,7 +374,7 @@ function renderRepBlock(container, session, headerHTML, block, idx) {
 }
 
 // ── 메인 세트 ────────────────────────────
-function renderMainBlock(container, session, headerHTML, block, idx) {
+function renderMainBlock(container, session, headerHTML, block, idx, handColor) {
   const target = block.targetReps;
   const theme  = BLOCK_THEME.main;
   let reps = 0;
@@ -448,23 +448,14 @@ function renderMainBlock(container, session, headerHTML, block, idx) {
   });
 
   doneBtn.addEventListener('click', async () => {
-    await persistBlock(session, idx, { reps });
+  await persistBlock(session, idx, { reps });
+  nextBlock(container, session);
+});
 
-    const hand = block.hand;
-    if (block.set === 3 && hand === 'right') {
-      for (const h of ['left', 'right']) {
-        session[h].mainSuccess = calcMainSuccess(session[h].sets);
-      }
-    } else if (block.set === 3 && hand === 'left') {
-      session.left.mainSuccess = calcMainSuccess(session.left.sets);
-    }
-
-    nextBlock(container, session);
-  });
 }
 
 // ── 네거티브 (5초 버티기 타이머) ──────────
-function renderNegativeBlock(container, session, headerHTML, block, idx) {
+function renderNegativeBlock(container, session, headerHTML, block, idx, handColor) {
   const DURATION = 5;
   let seconds  = DURATION;
   let running  = false;
@@ -566,7 +557,7 @@ function renderNegativeBlock(container, session, headerHTML, block, idx) {
 }
 
 // ── 홀딩 (최대 20초) ─────────────────────
-function renderHoldingBlock(container, session, headerHTML, block, idx) {
+function renderHoldingBlock(container, session, headerHTML, block, idx, handColor) {
   const MAX = 20;
   let elapsed = 0;
   let running = false;
@@ -701,58 +692,59 @@ function renderRest(container, session, totalSeconds) {
   let remaining = totalSeconds;
   let timerId   = null;
 
-  function render() {
-    const pct    = (session.currentIdx / session.blocks.length) * 100;
-    const fill   = remaining / totalSeconds;
-    const offset = CIRCUM * (1 - fill);
-    const mins   = Math.floor(remaining / 60);
-    const secs   = String(remaining % 60).padStart(2, '0');
+  const pct = (session.currentIdx / session.blocks.length) * 100;
 
-    container.innerHTML = `
-      <div class="session-screen">
-        <div class="session-header">
-          <div class="session-progress-bar">
-            <div class="session-progress-fill" style="width:${pct}%"></div>
-          </div>
-          <span class="session-step-label">${session.currentIdx} / ${session.blocks.length}</span>
+  // DOM은 한 번만 렌더링
+  container.innerHTML = `
+    <div class="session-screen">
+      <div class="session-header">
+        <div class="session-progress-bar">
+          <div class="session-progress-fill" style="width:${pct}%"></div>
         </div>
-        <div class="rest-screen">
-          <div class="rest-title">다음 세트까지</div>
-          <div class="timer-ring-wrap">
-            <svg class="timer-ring" viewBox="0 0 170 170" xmlns="http://www.w3.org/2000/svg">
-              <circle class="timer-ring-bg"   cx="85" cy="85" r="80"/>
-              <circle class="timer-ring-fill" cx="85" cy="85" r="80"
-                stroke-dasharray="${CIRCUM}"
-                stroke-dashoffset="${offset}"
-                style="transition:stroke-dashoffset 0.9s linear"/>
-            </svg>
-            <div class="timer-center">
-              <div class="timer-seconds">${mins}:${secs}</div>
-              <div class="timer-label">휴식</div>
-            </div>
-          </div>
-          <button class="skip-btn" id="skipBtn">스킵</button>
-        </div>
+        <span class="session-step-label">${session.currentIdx} / ${session.blocks.length}</span>
       </div>
-    `;
+      <div class="rest-screen">
+        <div class="rest-title">다음 세트까지</div>
+        <div class="timer-ring-wrap">
+          <svg class="timer-ring" viewBox="0 0 170 170" xmlns="http://www.w3.org/2000/svg">
+            <circle class="timer-ring-bg"   cx="85" cy="85" r="80"/>
+            <circle class="timer-ring-fill" cx="85" cy="85" r="80"
+              stroke-dasharray="${CIRCUM}"
+              stroke-dashoffset="0"
+              id="restRing"/>
+          </svg>
+          <div class="timer-center">
+            <div class="timer-seconds" id="restSec">${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}</div>
+            <div class="timer-label">휴식</div>
+          </div>
+        </div>
+        <button class="skip-btn" id="skipBtn">스킵</button>
+      </div>
+    </div>
+  `;
 
-    document.getElementById('skipBtn').addEventListener('click', () => {
-      clearInterval(timerId);
-      saveSession(session);
-      renderBlock(container, session);
-    });
-  }
+  // 이벤트는 한 번만 등록
+  document.getElementById('skipBtn').addEventListener('click', () => {
+    clearInterval(timerId);
+    saveSession(session);
+    renderBlock(container, session);
+  });
 
-  render();
+  const ringEl = document.getElementById('restRing');
+  const secEl  = document.getElementById('restSec');
 
+  // 타이머: DOM 요소만 업데이트
   timerId = setInterval(() => {
     remaining--;
+    const offset = CIRCUM * (1 - remaining / totalSeconds);
+    ringEl.style.strokeDashoffset = offset;
+    ringEl.style.transition = 'stroke-dashoffset 0.9s linear';
+    secEl.textContent = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
+
     if (remaining <= 0) {
       clearInterval(timerId);
       saveSession(session);
       renderBlock(container, session);
-    } else {
-      render();
     }
   }, 1000);
 }
@@ -792,15 +784,17 @@ function renderCompleteSummary(container, session, result) {
   const rNeg    = session.right.negative ? '✓' : '—';
 
   function eventBadge(hand) {
-    const ev = result[hand].event;
-    if (!ev) return '';
-    const isPromoted = ev === 'promoted';
-    return `
-      <span class="event-badge ${ev}">
-        ${isPromoted ? '⬆ 다음 세션 +1단계' : '⬇ 다음 세션 -1단계'}
-        (${weightOf(result[hand].newStage)}kg)
-      </span>
-    `;
+  const ev = result[hand].event;
+  if (!ev) return '';
+  if (ev === 'promoted') return `
+    <span class="event-badge promoted">⬆ 다음 세션 +1단계 (${weightOf(result[hand].newStage)}kg)</span>`;
+  if (ev === 'demoted') return `
+    <span class="event-badge demoted">⬇ 다음 세션 -1단계 (${weightOf(result[hand].newStage)}kg)</span>`;
+  if (ev === 'max_stage') return `
+    <span class="event-badge" style="background:rgba(212,168,67,0.12);color:#d4a843;border:1px solid rgba(212,168,67,0.25)">
+      🏅 최고 단계 유지중
+    </span>`;
+  return '';
   }
 
   const bothSuccess = session.left.mainSuccess && session.right.mainSuccess;
